@@ -726,8 +726,22 @@ function getGmailAppComposeUrl() {
   return `googlegmail:///co?${params.toString()}`;
 }
 
+function getAndroidGmailIntentUrl(gmailUrl) {
+  const params = new URLSearchParams({
+    subject: "BOOKING CONFIRMATION FROM AFX FILMER",
+    body: getEmailTemplateText(),
+  });
+  const fallbackUrl = encodeURIComponent(gmailUrl);
+
+  return `intent://co?${params.toString()}#Intent;scheme=googlegmail;package=com.google.android.gm;S.browser_fallback_url=${fallbackUrl};end`;
+}
+
 function isMobileDevice() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+function isAndroidDevice() {
+  return /Android/i.test(navigator.userAgent);
 }
 
 function openGmailWithMobileFallback(gmailUrl) {
@@ -736,7 +750,7 @@ function openGmailWithMobileFallback(gmailUrl) {
     return;
   }
 
-  const gmailAppUrl = getGmailAppComposeUrl();
+  const gmailAppUrl = isAndroidDevice() ? getAndroidGmailIntentUrl(gmailUrl) : getGmailAppComposeUrl();
   let fallbackTimer;
 
   const clearFallback = () => {
