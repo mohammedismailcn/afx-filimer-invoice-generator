@@ -64,7 +64,12 @@
             <div class="form-grid">
               <label>
                 Album count
-                <input id="albumCount" type="number" min="1" step="1" value="1" />
+                <select id="albumCount">
+                  <option value="0">0</option>
+                  <option value="1" selected>1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
               </label>
               <label>
                 Album page count
@@ -127,16 +132,32 @@
       <div class="event-card">
         <div class="event-card-header">
           <strong>Event</strong>
-          <button class="icon-button remove-event" type="button" aria-label="Remove event">×</button>
+          <button class="icon-button remove-event" type="button" aria-label="Remove event">x</button>
         </div>
         <div class="form-grid">
           <label>
+            Select event
+            <select class="event-select">
+              <option value="WEDDING">WEDDING</option>
+              <option value="HALDI">HALDI</option>
+              <option value="MEHENDI">MEHENDI</option>
+              <option value="RECEPTION">RECEPTION</option>
+              <option value="PRE - WED">PRE - WED</option>
+              <option value="SAVE THE DATE">SAVE THE DATE</option>
+              <option value="BACHELOR - PARTY">BACHELOR - PARTY</option>
+              <option value="GROOM EVE">GROOM EVE</option>
+              <option value="BRIDE EVE">BRIDE EVE</option>
+              <option value="MADHURAMVEPPU">MADHURAMVEPPU</option>
+              <option value="ENGAGEMENT">ENGAGEMENT</option>
+            </select>
+          </label>
+          <label>
             Event name
-            <input class="event-name" type="text" required />
+            <input class="event-name uppercase-field" type="text" required />
           </label>
           <label>
             Date
-            <input class="event-date" type="text" placeholder="No date" />
+            <input class="event-date" type="date" />
           </label>
           <label>
             Location
@@ -144,11 +165,21 @@
           </label>
           <label>
             Photographers
-            <input class="photo-count" type="number" min="0" step="1" value="1" />
+            <select class="photo-count">
+              <option value="0">0</option>
+              <option value="1" selected>1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
           </label>
           <label>
             Videographers
-            <input class="video-count" type="number" min="0" step="1" value="1" />
+            <select class="video-count">
+              <option value="0">0</option>
+              <option value="1" selected>1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
           </label>
         </div>
         <p class="field-note">At least 1 photographer or 1 videographer is required.</p>

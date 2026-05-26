@@ -1,8 +1,8 @@
 const state = {
   events: [
     {
-      name: "Bachelor party",
-      date: "No date",
+      name: "BACHELOR - PARTY",
+      date: getTodayDateValue(),
       location: "",
       photos: 1,
       videos: 1,
@@ -58,13 +58,42 @@ function pluralize(count, singular, plural) {
   return `${countToWords(count)} ${count === 1 ? singular : plural}`;
 }
 
+function pluralizeNumber(count, singular, plural) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function toUpperValue(value) {
+  return String(value || "").toUpperCase();
+}
+
+function forceUppercaseInput(input) {
+  const start = input.selectionStart;
+  const end = input.selectionEnd;
+  input.value = toUpperValue(input.value);
+
+  if (typeof start === "number" && typeof end === "number") {
+    input.setSelectionRange(start, end);
+  }
+}
+
+function getTodayDateValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatDateForInvoice(dateValue) {
+  if (!dateValue) return "No date";
+  const [year, month, day] = dateValue.split("-");
+  if (!year || !month || !day) return dateValue;
+  return `${day}/${month}/${year}`;
+}
+
 function countToWords(count) {
   const safeCount = Math.max(0, Number(count) || 0);
   return numberWords[safeCount] || formatCurrency.format(safeCount);
 }
 
 function getSelectedOutputLabels() {
-  const albumCount = Number(elements.albumCount.value) || 1;
+  const albumCount = Number(elements.albumCount.value) || 0;
   const pageCount = Number(elements.albumPageCount.value) || 1;
   const leafCount = Number(elements.albumLeafCount.value) || 1;
 
@@ -72,14 +101,17 @@ function getSelectedOutputLabels() {
     .filter((output) => output.checked)
     .map((output) => {
       if (output.type === "album") {
+        if (albumCount < 1) return "";
         return `${pluralize(albumCount, "Album", "Albums")} ${pageCount} pages, ${leafCount} leaf`;
       }
       return output.label;
-    });
+    })
+    .filter(Boolean);
 }
 
 function isAlbumSelected() {
-  return state.outputs.some((output) => output.type === "album" && output.checked);
+  const albumCount = Number(elements.albumCount.value) || 0;
+  return albumCount > 0 && state.outputs.some((output) => output.type === "album" && output.checked);
 }
 
 function renderEventsForm() {
@@ -89,6 +121,7 @@ function renderEventsForm() {
     const node = elements.eventTemplate.content.firstElementChild.cloneNode(true);
     const title = node.querySelector("strong");
     const removeButton = node.querySelector(".remove-event");
+    const eventSelect = node.querySelector(".event-select");
     const nameInput = node.querySelector(".event-name");
     const dateInput = node.querySelector(".event-date");
     const locationInput = node.querySelector(".event-location");
@@ -96,6 +129,7 @@ function renderEventsForm() {
     const videoInput = node.querySelector(".video-count");
 
     title.textContent = `Event ${index + 1}`;
+    eventSelect.value = event.name;
     nameInput.value = event.name;
     dateInput.value = event.date;
     locationInput.value = event.location;
@@ -106,11 +140,13 @@ function renderEventsForm() {
     const syncEvent = () => {
       const photos = Number(photoInput.value) || 0;
       const videos = Number(videoInput.value) || 0;
+      forceUppercaseInput(locationInput);
+      forceUppercaseInput(nameInput);
 
       state.events[index] = {
-        name: nameInput.value,
+        name: toUpperValue(nameInput.value),
         date: dateInput.value,
-        location: locationInput.value,
+        location: toUpperValue(locationInput.value),
         photos,
         videos,
       };
@@ -121,6 +157,12 @@ function renderEventsForm() {
 
     [nameInput, dateInput, locationInput, photoInput, videoInput].forEach((input) => {
       input.addEventListener("input", syncEvent);
+      input.addEventListener("change", syncEvent);
+    });
+
+    eventSelect.addEventListener("change", () => {
+      nameInput.value = eventSelect.value;
+      syncEvent();
     });
 
     removeButton.addEventListener("click", () => {
@@ -171,7 +213,7 @@ function renderComplementaryForm() {
 }
 
 function renderPreview() {
-  elements.previewClientName.textContent = elements.clientName.value.trim() || "Client";
+  elements.previewClientName.textContent = toUpperValue(elements.clientName.value.trim()) || "CLIENT";
   elements.previewEvents.innerHTML = "";
   elements.previewOutputs.innerHTML = "";
   elements.previewComplementary.innerHTML = "";
@@ -186,11 +228,11 @@ function renderPreview() {
     const cameraLines = [];
 
     if (event.photos > 0) {
-      cameraLines.push(pluralize(event.photos, "photographer", "photographers"));
+      cameraLines.push(pluralizeNumber(event.photos, "photographer", "photographers"));
     }
 
     if (event.videos > 0) {
-      cameraLines.push(pluralize(event.videos, "videographer", "videographers"));
+      cameraLines.push(pluralizeNumber(event.videos, "videographer", "videographers"));
     }
 
     cameraWrapper.className = "camera-lines";
@@ -200,10 +242,10 @@ function renderPreview() {
       cameraWrapper.append(span);
     });
 
-    dateCell.textContent = event.date.trim() || "No date";
-    eventCell.textContent = event.name.trim() || "Event";
+    dateCell.textContent = formatDateForInvoice(event.date);
+    eventCell.textContent = toUpperValue(event.name.trim()) || "EVENT";
     cameraCell.append(cameraWrapper);
-    locationCell.textContent = event.location.trim();
+    locationCell.textContent = toUpperValue(event.location.trim());
     row.append(dateCell, eventCell, cameraCell, locationCell);
     elements.previewEvents.append(row);
   });
@@ -216,7 +258,7 @@ function renderPreview() {
 
   const complementaryItems = [];
   if (isAlbumSelected()) {
-    const count = Number(elements.albumCount.value) || 1;
+    const count = Number(elements.albumCount.value) || 0;
     complementaryItems.push(pluralize(count, "mini album", "mini albums"));
     complementaryItems.push(pluralize(count, "Calendar", "Calendars"));
     complementaryItems.push(pluralize(count, "Photo Frame", "Photo Frames"));
@@ -247,8 +289,8 @@ function renderPreview() {
 
 function addEvent() {
   state.events.push({
-    name: "",
-    date: "",
+    name: "WEDDING",
+    date: getTodayDateValue(),
     location: "",
     photos: 1,
     videos: 0,
@@ -481,14 +523,14 @@ async function createInvoicePngBlob() {
 
   const eventRows = state.events.map((event) => {
     const cameraLines = [];
-    if (event.photos > 0) cameraLines.push(pluralize(event.photos, "photographer", "photographers"));
-    if (event.videos > 0) cameraLines.push(pluralize(event.videos, "videographer", "videographers"));
+    if (event.photos > 0) cameraLines.push(pluralizeNumber(event.photos, "photographer", "photographers"));
+    if (event.videos > 0) cameraLines.push(pluralizeNumber(event.videos, "videographer", "videographers"));
 
     const cells = [
-      event.date.trim() || "No date",
-      event.name.trim() || "Event",
+      formatDateForInvoice(event.date),
+      toUpperValue(event.name.trim()) || "EVENT",
       cameraLines.join("\n"),
-      event.location.trim(),
+      toUpperValue(event.location.trim()),
     ];
     const lineCounts = cells.map((cell, index) => {
       return String(cell)
@@ -675,16 +717,56 @@ function getGmailComposeUrl() {
   return `https://mail.google.com/mail/?${params.toString()}`;
 }
 
+function getGmailAppComposeUrl() {
+  const params = new URLSearchParams({
+    subject: "BOOKING CONFIRMATION FROM AFX FILMER",
+    body: getEmailTemplateText(),
+  });
+
+  return `googlegmail:///co?${params.toString()}`;
+}
+
+function isMobileDevice() {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+function openGmailWithMobileFallback(gmailUrl) {
+  if (!isMobileDevice()) {
+    window.open(gmailUrl, "_blank", "noopener");
+    return;
+  }
+
+  const gmailAppUrl = getGmailAppComposeUrl();
+  let fallbackTimer;
+
+  const clearFallback = () => {
+    window.clearTimeout(fallbackTimer);
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+  };
+
+  const handleVisibilityChange = () => {
+    if (document.hidden) clearFallback();
+  };
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  window.location.href = gmailAppUrl;
+
+  fallbackTimer = window.setTimeout(() => {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+    window.open(gmailUrl, "_blank", "noopener");
+  }, 1400);
+}
+
 async function openGmailEmail() {
   const gmailUrl = getGmailComposeUrl();
 
   try {
     await copyTextToClipboard(getEmailTemplateText());
-    window.open(gmailUrl, "_blank", "noopener");
-    setEmailStatus("Gmail opened with the email body. Then click Copy Invoice Image and paste it at image.png.", "success");
+    openGmailWithMobileFallback(gmailUrl);
+    setEmailStatus("Opening Gmail app on mobile. If it is not installed, browser Gmail will open. Then paste the invoice image at image.png.", "success");
   } catch (error) {
-    window.open(gmailUrl, "_blank", "noopener");
-    setEmailStatus("Gmail opened with the email body. If Gmail removes it, paste from clipboard or try Chrome.", "error");
+    openGmailWithMobileFallback(gmailUrl);
+    setEmailStatus("Opening Gmail. If the body is missing, paste it from clipboard or try Chrome.", "error");
   }
 }
 
@@ -713,7 +795,10 @@ document.querySelector("#copyInvoiceImage").addEventListener("click", () => {
   elements.includeFood,
   elements.includeAccommodation,
 ].forEach((input) => {
-  input.addEventListener("input", renderPreview);
+  input.addEventListener("input", () => {
+    if (input.type === "text") forceUppercaseInput(input);
+    renderPreview();
+  });
   input.addEventListener("change", renderPreview);
 });
 
