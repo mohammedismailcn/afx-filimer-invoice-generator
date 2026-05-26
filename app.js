@@ -44,6 +44,7 @@ const elements = {
   complementaryList: document.querySelector("#complementaryList"),
   customOutputText: document.querySelector("#customOutputText"),
   customComplementaryText: document.querySelector("#customComplementaryText"),
+  emailStatus: document.querySelector("#emailStatus"),
   previewClientName: document.querySelector("#previewClientName"),
   previewEvents: document.querySelector("#previewEvents"),
   previewOutputs: document.querySelector("#previewOutputs"),
@@ -314,6 +315,13 @@ function downloadBlob(blob, fileName) {
   URL.revokeObjectURL(url);
 }
 
+function setEmailStatus(message, type = "info") {
+  elements.emailStatus.hidden = false;
+  elements.emailStatus.textContent = message;
+  elements.emailStatus.classList.toggle("is-success", type === "success");
+  elements.emailStatus.classList.toggle("is-error", type === "error");
+}
+
 function getEmailTemplateHtml(imageDataUrl) {
   return `
     <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.45; color: #111;">
@@ -398,48 +406,57 @@ and if the client does not have any selection regarding the song and track then 
 THANKYOU!`;
 }
 
-function createInvoicePngBlob() {
+function getListTextItems(selector) {
+  return Array.from(document.querySelectorAll(`${selector} li`)).map((item) => item.textContent.trim());
+}
+
+function getWrappedLines(context, text, maxWidth) {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = "";
+
+  words.forEach((word) => {
+    const nextLine = line ? `${line} ${word}` : word;
+    if (context.measureText(nextLine).width <= maxWidth) {
+      line = nextLine;
+    } else {
+      if (line) lines.push(line);
+      line = word;
+    }
+  });
+
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
+function drawWrappedText(context, text, x, y, maxWidth, lineHeight, align = "left") {
+  const lines = getWrappedLines(context, text, maxWidth);
+  context.textAlign = align;
+
+  lines.forEach((line, index) => {
+    context.fillText(line, x, y + index * lineHeight);
+  });
+
+  return lines.length * lineHeight;
+}
+
+function drawBullets(context, items, x, y, maxWidth) {
+  let cursorY = y;
+  context.font = "14px Times New Roman";
+  context.fillStyle = "#111";
+  context.textAlign = "left";
+
+  items.forEach((item) => {
+    context.fillText("•", x, cursorY);
+    const usedHeight = drawWrappedText(context, item, x + 12, cursorY, maxWidth - 12, 17);
+    cursorY += Math.max(17, usedHeight) + 3;
+  });
+
+  return cursorY;
+}
+
+function canvasToPngBlob(canvas) {
   return new Promise((resolve, reject) => {
-  const invoice = document.querySelector("#invoicePreview");
-  const width = Math.ceil(invoice.scrollWidth);
-  const height = Math.ceil(invoice.scrollHeight);
-  const scale = 2;
-  const clone = invoice.cloneNode(true);
-  const wrapper = document.createElement("div");
-  const style = document.createElement("style");
-
-  clone.style.width = `${width}px`;
-  clone.style.boxShadow = "none";
-  clone.style.margin = "0";
-  wrapper.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
-  wrapper.style.width = `${width}px`;
-  wrapper.style.height = `${height}px`;
-  wrapper.style.background = "white";
-  style.textContent = getPageStyles();
-  wrapper.append(style, clone);
-
-  const markup = new XMLSerializer().serializeToString(wrapper);
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-      <foreignObject width="100%" height="100%">${markup}</foreignObject>
-    </svg>
-  `;
-  const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  const svgUrl = URL.createObjectURL(svgBlob);
-  const image = new Image();
-
-  image.onload = () => {
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
-
-    canvas.width = width * scale;
-    canvas.height = height * scale;
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.scale(scale, scale);
-    context.drawImage(image, 0, 0);
-    URL.revokeObjectURL(svgUrl);
-
     canvas.toBlob((blob) => {
       if (blob) {
         resolve(blob);
@@ -447,15 +464,117 @@ function createInvoicePngBlob() {
         reject(new Error("PNG export failed."));
       }
     }, "image/png");
-  };
-
-  image.onerror = () => {
-    URL.revokeObjectURL(svgUrl);
-    reject(new Error("PNG export failed. Please try opening the app in Chrome or Edge."));
-  };
-
-  image.src = svgUrl;
   });
+}
+
+async function createInvoicePngBlob() {
+  renderPreview();
+
+  const width = 720;
+  const scale = 2;
+  const columns = [150, 170, 210, 190];
+  const outputs = getListTextItems("#previewOutputs");
+  const complementary = getListTextItems("#previewComplementary");
+  const measureCanvas = document.createElement("canvas");
+  const measureContext = measureCanvas.getContext("2d");
+  measureContext.font = "16px Times New Roman";
+
+  const eventRows = state.events.map((event) => {
+    const cameraLines = [];
+    if (event.photos > 0) cameraLines.push(pluralize(event.photos, "photographer", "photographers"));
+    if (event.videos > 0) cameraLines.push(pluralize(event.videos, "videographer", "videographers"));
+
+    const cells = [
+      event.date.trim() || "No date",
+      event.name.trim() || "Event",
+      cameraLines.join("\n"),
+      event.location.trim(),
+    ];
+    const lineCounts = cells.map((cell, index) => {
+      return String(cell)
+        .split("\n")
+        .flatMap((line) => getWrappedLines(measureContext, line, columns[index] - 24)).length;
+    });
+
+    return {
+      cells,
+      height: Math.max(86, Math.max(...lineCounts) * 19 + 26),
+    };
+  });
+
+  const listHeight = Math.max(220, Math.max(outputs.length, complementary.length) * 24 + 105);
+  const height = 31 + 38 + eventRows.reduce((sum, row) => sum + row.height, 0) + listHeight + 44 + 1;
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  context.scale(scale, scale);
+  context.fillStyle = "#fffdf8";
+  context.fillRect(0, 0, width, height);
+  context.strokeStyle = "#111";
+  context.lineWidth = 1;
+  context.fillStyle = "#111";
+
+  context.strokeRect(0.5, 0.5, width - 1, height - 1);
+  context.font = "bold 18px Times New Roman";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(`Client Name : ${elements.previewClientName.textContent}`, width / 2, 15.5);
+  context.beginPath();
+  context.moveTo(0, 31.5);
+  context.lineTo(width, 31.5);
+  context.stroke();
+
+  let y = 31;
+  context.font = "bold 16px Times New Roman";
+  const headers = ["Date", "Event", "Camera", "Location"];
+  let x = 0;
+  headers.forEach((header, index) => {
+    context.strokeRect(x + 0.5, y + 0.5, columns[index], 38);
+    context.fillText(header, x + columns[index] / 2, y + 19);
+    x += columns[index];
+  });
+  y += 38;
+
+  context.font = "16px Times New Roman";
+  eventRows.forEach((row) => {
+    x = 0;
+    row.cells.forEach((cell, index) => {
+      context.strokeRect(x + 0.5, y + 0.5, columns[index], row.height);
+      const lines = String(cell)
+        .split("\n")
+        .flatMap((line) => getWrappedLines(context, line, columns[index] - 24));
+      const startY = y + row.height / 2 - ((lines.length - 1) * 19) / 2;
+      context.textAlign = "center";
+      lines.forEach((line, lineIndex) => {
+        context.fillText(line, x + columns[index] / 2, startY + lineIndex * 19);
+      });
+      x += columns[index];
+    });
+    y += row.height;
+  });
+
+  context.strokeRect(0.5, y + 0.5, width / 2, listHeight);
+  context.strokeRect(width / 2 + 0.5, y + 0.5, width / 2 - 1, listHeight);
+  context.font = "bold 18px Times New Roman";
+  context.textAlign = "left";
+  context.fillText("Outputs", 18, y + 45);
+  context.fillText("Complementary Items", width / 2 + 18, y + 45);
+  drawBullets(context, outputs, 24, y + 90, width / 2 - 48);
+  drawBullets(context, complementary, width / 2 + 24, y + 90, width / 2 - 48);
+  y += listHeight;
+
+  context.strokeRect(0.5, y + 0.5, width - 1, 44);
+  context.font = "20px Times New Roman";
+  context.textAlign = "center";
+  context.fillText(
+    `Total Amount: ${elements.previewTotal.textContent} /- INR${elements.previewIncluded.textContent}`,
+    width / 2,
+    y + 22
+  );
+
+  return canvasToPngBlob(canvas);
 }
 
 function blobToDataUrl(blob) {
@@ -476,37 +595,96 @@ async function downloadInvoicePng() {
   }
 }
 
-async function copyEmailTemplate() {
-  const blob = await createInvoicePngBlob();
-  const imageDataUrl = await blobToDataUrl(blob);
-  const html = getEmailTemplateHtml(imageDataUrl);
-  const text = getEmailTemplateText();
-
-  if (navigator.clipboard && window.ClipboardItem) {
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        "text/html": new Blob([html], { type: "text/html" }),
-        "text/plain": new Blob([text], { type: "text/plain" }),
-      }),
-    ]);
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(text);
     return true;
   }
 
-  return false;
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.append(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  return copied;
+}
+
+async function copyInvoiceImageToClipboard() {
+  const copyButton = document.querySelector("#copyInvoiceImage");
+  const originalText = copyButton.textContent;
+  copyButton.disabled = true;
+  copyButton.textContent = "Copying...";
+  setEmailStatus("Preparing invoice image...", "info");
+
+  try {
+    const blob = await createInvoicePngBlob();
+    const canCopyImage =
+      window.isSecureContext &&
+      navigator.clipboard &&
+      window.ClipboardItem &&
+      (!ClipboardItem.supports || ClipboardItem.supports("image/png"));
+
+    if (canCopyImage) {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "image/png": blob,
+        }),
+      ]);
+      setEmailStatus("Success: invoice image copied. In Gmail, click the image.png line and press Ctrl+V.", "success");
+      copyButton.textContent = "Copied";
+      setTimeout(() => {
+        copyButton.textContent = originalText;
+        copyButton.disabled = false;
+      }, 1600);
+      return true;
+    }
+
+    downloadBlob(blob, getInvoiceFileName());
+    setEmailStatus(
+      "Image copy is not supported from this page. The PNG was downloaded; insert it manually in Gmail at image.png. For direct copy, open the app on HTTPS or localhost in Chrome/Edge.",
+      "error"
+    );
+    copyButton.textContent = originalText;
+    copyButton.disabled = false;
+    return false;
+  } catch (error) {
+    setEmailStatus("Image copy failed. Use Download PNG, then insert the PNG manually in Gmail.", "error");
+    copyButton.textContent = originalText;
+    copyButton.disabled = false;
+    throw error;
+  } finally {
+    if (copyButton.textContent === "Copying...") {
+      copyButton.textContent = originalText;
+      copyButton.disabled = false;
+    }
+  }
+}
+
+function getGmailComposeUrl() {
+  const params = new URLSearchParams({
+    view: "cm",
+    fs: "1",
+    su: "BOOKING CONFIRMATION FROM AFX FILMER",
+    body: getEmailTemplateText(),
+  });
+
+  return `https://mail.google.com/mail/?${params.toString()}`;
 }
 
 async function openGmailEmail() {
+  const gmailUrl = getGmailComposeUrl();
+
   try {
-    const copied = await copyEmailTemplate();
-    window.open("https://mail.google.com/mail/?view=cm&fs=1", "_blank", "noopener");
-    alert(
-      copied
-        ? "Email template with the invoice image is copied. Click inside Gmail body and press Ctrl+V."
-        : "Gmail opened. Please use Download PNG and paste/insert it at image.png."
-    );
+    await copyTextToClipboard(getEmailTemplateText());
+    window.open(gmailUrl, "_blank", "noopener");
+    setEmailStatus("Gmail opened with the email body. Then click Copy Invoice Image and paste it at image.png.", "success");
   } catch (error) {
-    window.open("https://mail.google.com/mail/?view=cm&fs=1", "_blank", "noopener");
-    alert("Gmail opened, but the email copy failed. Please use Download PNG and insert it manually.");
+    window.open(gmailUrl, "_blank", "noopener");
+    setEmailStatus("Gmail opened with the email body. If Gmail removes it, paste from clipboard or try Chrome.", "error");
   }
 }
 
@@ -516,6 +694,14 @@ document.querySelector("#addComplementary").addEventListener("click", addCustomC
 document.querySelector("#printInvoice").addEventListener("click", () => window.print());
 document.querySelector("#downloadPng").addEventListener("click", downloadInvoicePng);
 document.querySelector("#openGmail").addEventListener("click", openGmailEmail);
+document.querySelector("#copyInvoiceImage").addEventListener("click", () => {
+  copyInvoiceImageToClipboard().catch(() => {
+    const copyButton = document.querySelector("#copyInvoiceImage");
+    copyButton.disabled = false;
+    copyButton.textContent = "Copy Invoice Image";
+    setEmailStatus("Image copy failed. Use Download PNG, then insert the PNG manually in Gmail.", "error");
+  });
+});
 
 [
   elements.clientName,

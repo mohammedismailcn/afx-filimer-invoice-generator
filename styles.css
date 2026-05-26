@@ -61,6 +61,29 @@ input {
   gap: 10px;
 }
 
+.email-status {
+  margin: -10px 0 20px;
+  padding: 10px 12px;
+  color: var(--accent-dark);
+  background: #dcebe8;
+  border: 1px solid #bfd8d4;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.email-status.is-success {
+  color: #155f34;
+  background: #e0f4e8;
+  border-color: #a8d7b8;
+}
+
+.email-status.is-error {
+  color: #8f2020;
+  background: #fae5e3;
+  border-color: #efb9b4;
+}
+
 .eyebrow {
   margin: 0 0 4px;
   color: var(--accent);
