@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AFX Invoice Generator</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="controls-panel" aria-label="Invoice details">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">AFX Filmer</p>
+            <h1>Invoice Generator</h1>
+          </div>
+          <div class="header-actions">
+            <button class="primary-button" type="button" id="downloadPng">Download PNG</button>
+            <button class="primary-button" type="button" id="openGmail">Send Email</button>
+            <button class="ghost-button" type="button" id="printInvoice">Print / Save PDF</button>
+          </div>
+        </div>
+
+        <form id="invoiceForm">
+          <div class="form-grid">
+            <label>
+              Client name
+              <input id="clientName" type="text" value="Client name" required />
+            </label>
+            <label>
+              Total amount
+              <input id="totalAmount" type="number" min="0" step="1" value="85000" required />
+            </label>
+          </div>
+
+          <fieldset>
+            <legend>Events</legend>
+            <div id="eventsList" class="stack"></div>
+            <button class="ghost-button" type="button" id="addEvent">+ Add event</button>
+          </fieldset>
+
+          <fieldset>
+            <legend>Outputs</legend>
+            <div id="outputsList" class="checkbox-list"></div>
+            <div class="inline-add">
+              <input id="customOutputText" type="text" placeholder="Add other output" />
+              <button class="ghost-button" type="button" id="addOutput">Add</button>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Complementary Items</legend>
+            <div id="complementaryList" class="checkbox-list"></div>
+            <div class="inline-add">
+              <input id="customComplementaryText" type="text" placeholder="Add complementary item" />
+              <button class="ghost-button" type="button" id="addComplementary">Add</button>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Album details</legend>
+            <div class="form-grid">
+              <label>
+                Album count
+                <input id="albumCount" type="number" min="1" step="1" value="1" />
+              </label>
+              <label>
+                Album page count
+                <input id="albumPageCount" type="number" min="1" step="1" value="100" />
+              </label>
+              <label>
+                Album leaf count
+                <input id="albumLeafCount" type="number" min="1" step="1" value="50" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Included items</legend>
+            <div class="checkbox-list compact">
+              <label><input type="checkbox" id="includeTravel" checked /> Travel</label>
+              <label><input type="checkbox" id="includeFood" /> Food</label>
+              <label><input type="checkbox" id="includeAccommodation" /> Accommodation</label>
+            </div>
+          </fieldset>
+        </form>
+      </section>
+
+      <section class="preview-panel" aria-label="Invoice preview">
+        <article class="invoice" id="invoicePreview">
+          <header class="invoice-title">Client Name : <span id="previewClientName"></span></header>
+          <table class="events-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Event</th>
+                <th>Camera</th>
+                <th>Location</th>
+              </tr>
+            </thead>
+            <tbody id="previewEvents"></tbody>
+          </table>
+
+          <div class="invoice-lists">
+            <section>
+              <h2>Outputs</h2>
+              <ul id="previewOutputs"></ul>
+            </section>
+            <section>
+              <h2>Complementary Items</h2>
+              <ul id="previewComplementary"></ul>
+            </section>
+          </div>
+
+          <footer class="invoice-total">
+            Total Amount: <strong id="previewTotal"></strong> /- INR
+            <span id="previewIncluded"></span>
+          </footer>
+          
+        </article>
+      </section>
+    </main>
+
+    <template id="eventTemplate">
+      <div class="event-card">
+        <div class="event-card-header">
+          <strong>Event</strong>
+          <button class="icon-button remove-event" type="button" aria-label="Remove event">×</button>
+        </div>
+        <div class="form-grid">
+          <label>
+            Event name
+            <input class="event-name" type="text" required />
+          </label>
+          <label>
+            Date
+            <input class="event-date" type="text" placeholder="No date" />
+          </label>
+          <label>
+            Location
+            <input class="event-location" type="text" placeholder="Location" />
+          </label>
+          <label>
+            Photographers
+            <input class="photo-count" type="number" min="0" step="1" value="1" />
+          </label>
+          <label>
+            Videographers
+            <input class="video-count" type="number" min="0" step="1" value="1" />
+          </label>
+        </div>
+        <p class="field-note">At least 1 photographer or 1 videographer is required.</p>
+      </div>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
