@@ -706,6 +706,57 @@ async function copyInvoiceImageToClipboard() {
   }
 }
 
+async function copyFullEmailToClipboard() {
+  const copyButton = document.querySelector("#copyFullEmail");
+  const originalText = copyButton.textContent;
+  copyButton.disabled = true;
+  copyButton.textContent = "Copying...";
+  setEmailStatus("Creating full email with invoice image...", "info");
+
+  try {
+    const blob = await createInvoicePngBlob();
+    const imageDataUrl = await blobToDataUrl(blob);
+    const html = getEmailTemplateHtml(imageDataUrl);
+    const text = getEmailTemplateText();
+
+    if (navigator.clipboard && window.ClipboardItem) {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" }),
+        }),
+      ]);
+    } else {
+      const container = document.createElement("div");
+      container.contentEditable = "true";
+      container.style.position = "fixed";
+      container.style.left = "-9999px";
+      container.innerHTML = html;
+      document.body.append(container);
+
+      const range = document.createRange();
+      range.selectNodeContents(container);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand("copy");
+      selection.removeAllRanges();
+      container.remove();
+    }
+
+    setEmailStatus("Success: full email copied. Open Gmail and paste into the message body.", "success");
+    copyButton.textContent = "Copied";
+    setTimeout(() => {
+      copyButton.textContent = originalText;
+      copyButton.disabled = false;
+    }, 1600);
+  } catch (error) {
+    setEmailStatus("Full email copy failed. Use Download PNG and insert the image manually in Gmail.", "error");
+    copyButton.textContent = originalText;
+    copyButton.disabled = false;
+  }
+}
+
 function getGmailComposeUrl() {
   const params = new URLSearchParams({
     view: "cm",
@@ -787,9 +838,9 @@ async function openGmailEmail() {
 document.querySelector("#addEvent").addEventListener("click", addEvent);
 document.querySelector("#addOutput").addEventListener("click", addCustomOutput);
 document.querySelector("#addComplementary").addEventListener("click", addCustomComplementary);
-document.querySelector("#printInvoice").addEventListener("click", () => window.print());
 document.querySelector("#downloadPng").addEventListener("click", downloadInvoicePng);
 document.querySelector("#openGmail").addEventListener("click", openGmailEmail);
+document.querySelector("#copyFullEmail").addEventListener("click", copyFullEmailToClipboard);
 document.querySelector("#copyInvoiceImage").addEventListener("click", () => {
   copyInvoiceImageToClipboard().catch(() => {
     const copyButton = document.querySelector("#copyInvoiceImage");
