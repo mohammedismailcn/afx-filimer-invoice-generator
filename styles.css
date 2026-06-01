@@ -263,6 +263,17 @@ input[type="checkbox"] {
   letter-spacing: 0;
 }
 
+.checkbox-list label.with-count {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 84px;
+}
+
+.output-count-input {
+  min-height: 34px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
 .checkbox-list.compact {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }

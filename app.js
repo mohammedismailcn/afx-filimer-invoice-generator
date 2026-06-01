@@ -12,7 +12,7 @@ const state = {
     { id: "album", label: "Album", checked: true, type: "album" },
     { id: "function-video", label: "Function video", checked: true },
     { id: "highlight-video", label: "Highlight Video", checked: true },
-    { id: "reels-video", label: "Reels Video", checked: true },
+    { id: "reels-video", label: "Reels Video", checked: true, type: "reels", count: 1 },
     { id: "photo-link", label: "Edited Photo Link (each function)", checked: true },
   ],
   complementary: [],
@@ -27,7 +27,23 @@ const numberWords = [
   "One",
   "Two",
   "Three",
-  "Four"
+  "Four",
+  "Five",
+  "Six",
+  "Seven",
+  "Eight",
+  "Nine",
+  "Ten",
+  "Eleven",
+  "Twelve",
+  "Thirteen",
+  "Fourteen",
+  "Fifteen",
+  "Sixteen",
+  "Seventeen",
+  "Eighteen",
+  "Nineteen",
+  "Twenty",
 ];
 
 const elements = {
@@ -103,6 +119,9 @@ function getSelectedOutputLabels() {
       if (output.type === "album") {
         if (albumCount < 1) return "";
         return `${pluralize(albumCount, "Album", "Albums")} ${pageCount} pages, ${leafCount} leaf`;
+      }
+      if (output.type === "reels") {
+        return pluralize(Number(output.count) || 1, "Reel Video", "Reel Videos");
       }
       return output.label;
     })
@@ -186,10 +205,37 @@ function renderOutputsForm() {
     checkbox.checked = output.checked;
     checkbox.addEventListener("change", () => {
       output.checked = checkbox.checked;
+      const countInput = label.querySelector(".output-count-input");
+      if (countInput) countInput.disabled = !checkbox.checked;
       renderPreview();
     });
 
     label.append(checkbox, document.createTextNode(output.label));
+
+    if (output.type === "reels") {
+      label.classList.add("with-count");
+
+      const countInput = document.createElement("input");
+      countInput.className = "output-count-input";
+      countInput.type = "number";
+      countInput.min = "1";
+      countInput.step = "1";
+      countInput.value = output.count || 1;
+      countInput.disabled = !output.checked;
+      countInput.setAttribute("aria-label", "Reel video count");
+      countInput.addEventListener("input", () => {
+        output.count = Math.max(1, Number(countInput.value) || 1);
+        renderPreview();
+      });
+      countInput.addEventListener("change", () => {
+        output.count = Math.max(1, Number(countInput.value) || 1);
+        countInput.value = output.count;
+        renderPreview();
+      });
+
+      label.append(countInput);
+    }
+
     elements.outputsList.append(label);
   });
 }
